@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/analyze", "/ping"]
+  "exclude": ["/analyze", "/verify-license", "/check-session", "/ping"]
 }
