@@ -9,8 +9,7 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Simple session check - just verify it exists
-    // In production, you'd check a database or KV store
+    
     return new Response(
       JSON.stringify({ 
         authenticated: true,
