@@ -101,16 +101,17 @@ function App() {
       setAuthLoading(false);
     }
   };
-const handleStartResearch = async () => {
-  if (!nicheData.niche || !nicheData.buyer || !nicheData.platform || !nicheData.productType) {
-    alert('Please fill in all fields to begin research');
-    return;
-  }
 
-  setLoading(true);
-  setStep('research');
+  const handleStartResearch = async () => {
+    if (!nicheData.niche || !nicheData.buyer || !nicheData.platform || !nicheData.productType) {
+      alert('Please fill in all fields to begin research');
+      return;
+    }
 
-  const initialPrompt = `Analyze this niche briefly:
+    setLoading(true);
+    setStep('research');
+
+    const initialPrompt = `Analyze this niche briefly:
 Niche: ${nicheData.niche}
 Buyer: ${nicheData.buyer}
 Platform: ${nicheData.platform}
@@ -118,87 +119,39 @@ Type: ${nicheData.productType}
 
 Give me: A) 3 sub-niches B) Top 3 problems C) 3 product ideas D) Marketing tip. Keep it brief.`;
 
-  try {
-   
-   const response = await fetch('https://api.openrouter.ai/api/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer sk-or-v1-c8f1e8d9a0b4c7e6f5d4a3b2c1e0f9d8e7c6b5a4d3c2b1a0',
-    'HTTP-Referer': 'https://niche-researcher-tool.pages.dev',
-  },
-  body: JSON.stringify({
-    model: 'anthropic/claude-3.5-sonnet',
-    messages: [{ role: 'user', content: initialPrompt }]
-  })
-});
+    try {
+      const response = await fetch('https://api.openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer sk-or-v1-c8f1e8d9a0b4c7e6f5d4a3b2c1e0f9d8e7c6b5a4d3c2b1a0',
+          'HTTP-Referer': 'https://niche-researcher-tool.pages.dev',
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-3.5-sonnet',
+          messages: [{ role: 'user', content: initialPrompt }]
+        })
+      });
 
-const data = await response.json();
+      const data = await response.json();
 
-if (data.choices && data.choices[0]) {
-  setChatHistory([{
-    role: 'assistant',
-    content: data.choices[0].message.content
-  }]);
-}
-  setLoading(false);
-};
-
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        console.error('HTTP error! status:', response.status, 'body:', responseText);
-        throw new Error(`HTTP error! status: ${response.status}\n\n${responseText}`);
-      }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse JSON. Response was:', responseText);
-        throw new Error('Server returned invalid response (not JSON).');
-      }
-
-      if (data.error || data.errorType) {
-        const errorMsg = data.errorMessage || JSON.stringify(data.error) || 'Unknown error';
-        alert('API Error: ' + errorMsg);
-        setLoading(false);
+      if (data.choices && data.choices[0]) {
+        const aiResponse = data.choices[0].message.content;
+        setChatHistory([
+          { role: 'user', content: `Analyzing: ${nicheData.niche}` },
+          { role: 'assistant', content: aiResponse },
+          { role: 'assistant', content: '\n✅ RESEARCH COMPLETE! Ask me anything or use the buttons below for more details.' }
+        ]);
+      } else {
+        alert('Error: ' + (data.error?.message || 'Unknown error'));
         setStep('intake');
-        return;
       }
-
-      if (!data.content || !Array.isArray(data.content)) {
-        alert('Invalid response format. Please try again.');
-        setLoading(false);
-        setStep('intake');
-        return;
-      }
-
-      const aiResponse = data.content
-        .filter((item) => item.type === 'text')
-        .map((item) => item.text)
-        .join('\n');
-
-      if (!aiResponse) {
-        alert('No text found in response. Please try again.');
-        setLoading(false);
-        setStep('intake');
-        return;
-      }
-
-      setChatHistory([
-        { role: 'user', content: `Analyzing: ${nicheData.niche}` },
-        { role: 'assistant', content: aiResponse },
-        { role: 'assistant', content: '\n✅ RESEARCH COMPLETE! Ask me anything or use the buttons below for more details.' }
-      ]);
-
-      setLoading(false);
     } catch (error) {
-      console.error('Full error:', error);
-      alert('Error connecting to AI: ' + error.message);
-      setLoading(false);
+      alert('Error: ' + error.message);
       setStep('intake');
     }
+
+    setLoading(false);
   };
 
   const handleSendMessage = async (messageToSend = null) => {
@@ -213,53 +166,28 @@ if (data.choices && data.choices[0]) {
     try {
       const messagesToSend = newHistory.slice(-10);
 
-      const response = await fetch('/analyze', {
+      const response = await fetch('https://api.openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messagesToSend })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer sk-or-v1-c8f1e8d9a0b4c7e6f5d4a3b2c1e0f9d8e7c6b5a4d3c2b1a0',
+          'HTTP-Referer': 'https://niche-researcher-tool.pages.dev',
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-3.5-sonnet',
+          messages: messagesToSend
+        })
       });
 
-      const responseText = await response.text();
+      const data = await response.json();
 
-      if (!response.ok) {
-        console.error('HTTP error! status:', response.status, 'body:', responseText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (data.choices && data.choices[0]) {
+        const aiResponse = data.choices[0].message.content;
+        setChatHistory([...newHistory, { role: 'assistant', content: aiResponse }]);
+      } else {
+        alert('API Error: ' + (data.error?.message || 'Unknown error'));
       }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse JSON. Response was:', responseText);
-        throw new Error('Server returned invalid response (not JSON).');
-      }
-
-      if (data.error || data.errorType) {
-        alert('API Error: ' + (data.errorMessage || JSON.stringify(data.error)));
-        setLoading(false);
-        return;
-      }
-
-      if (!data.content || !Array.isArray(data.content)) {
-        alert('Invalid response: ' + JSON.stringify(data));
-        setLoading(false);
-        return;
-      }
-
-      const aiResponse = data.content
-        .filter((item) => item.type === 'text')
-        .map((item) => item.text)
-        .join('\n');
-
-      if (!aiResponse) {
-        alert('No text found in response');
-        setLoading(false);
-        return;
-      }
-
-      setChatHistory([...newHistory, { role: 'assistant', content: aiResponse }]);
     } catch (error) {
-      console.error('Full error:', error);
       alert('Error: ' + error.message);
     }
 
