@@ -101,17 +101,16 @@ function App() {
       setAuthLoading(false);
     }
   };
+const handleStartResearch = async () => {
+  if (!nicheData.niche || !nicheData.buyer || !nicheData.platform || !nicheData.productType) {
+    alert('Please fill in all fields to begin research');
+    return;
+  }
 
-  const handleStartResearch = async () => {
-    if (!nicheData.niche || !nicheData.buyer || !nicheData.platform || !nicheData.productType) {
-      alert('Please fill in all fields to begin research');
-      return;
-    }
+  setLoading(true);
+  setStep('research');
 
-    setLoading(true);
-    setStep('research');
-
-    const initialPrompt = `Analyze this niche briefly:
+  const initialPrompt = `Analyze this niche briefly:
 Niche: ${nicheData.niche}
 Buyer: ${nicheData.buyer}
 Platform: ${nicheData.platform}
@@ -119,12 +118,36 @@ Type: ${nicheData.productType}
 
 Give me: A) 3 sub-niches B) Top 3 problems C) 3 product ideas D) Marketing tip. Keep it brief.`;
 
-    try {
-      const response = await fetch('/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: initialPrompt })
-      });
+  try {
+    // DIRECT API CALL
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'YOUR_API_KEY_HERE', // PUT YOUR ACTUAL KEY HERE
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: initialPrompt }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.content && data.content[0]) {
+      setChatHistory([{
+        role: 'assistant',
+        content: data.content[0].text
+      }]);
+    }
+  } catch (error) {
+    alert('Error: ' + error.message);
+  }
+
+  setLoading(false);
+};
 
       const responseText = await response.text();
 
