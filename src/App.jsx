@@ -119,33 +119,28 @@ Type: ${nicheData.productType}
 Give me: A) 3 sub-niches B) Top 3 problems C) 3 product ideas D) Marketing tip. Keep it brief.`;
 
   try {
-    // DIRECT API CALL
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': 'YOUR_API_KEY_HERE', // PUT YOUR ACTUAL KEY HERE
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: initialPrompt }]
-      })
-    });
+   
+   const response = await fetch('https://api.openrouter.ai/api/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer sk-or-v1-c8f1e8d9a0b4c7e6f5d4a3b2c1e0f9d8e7c6b5a4d3c2b1a0',
+    'HTTP-Referer': 'https://niche-researcher-tool.pages.dev',
+  },
+  body: JSON.stringify({
+    model: 'anthropic/claude-3.5-sonnet',
+    messages: [{ role: 'user', content: initialPrompt }]
+  })
+});
 
-    const data = await response.json();
-    
-    if (data.content && data.content[0]) {
-      setChatHistory([{
-        role: 'assistant',
-        content: data.content[0].text
-      }]);
-    }
-  } catch (error) {
-    alert('Error: ' + error.message);
-  }
+const data = await response.json();
 
+if (data.choices && data.choices[0]) {
+  setChatHistory([{
+    role: 'assistant',
+    content: data.choices[0].message.content
+  }]);
+}
   setLoading(false);
 };
 
