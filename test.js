@@ -1,5 +1,7 @@
-export async function onRequest() {
-  return new Response('Hello from function!', {
-    headers: { 'Content-Type': 'text/plain' }
-  });
+export function onRequestGet() {
+  return new Response('Functions work!');
+}
+
+export function onRequestPost() {
+  return new Response('POST works too!');
 }
