@@ -16,17 +16,19 @@ import {
   Trash2,
   LayoutList,
   BarChart3,
+  Key,
 } from "lucide-react";
 
 export default function App() {
   const productName = "Niche Researcher Tool";
 
-  // 🔐 Access codes (simple for now)
-  const VALID_CODES = useMemo(() => ["TEST-123456", "ADMIN-2024"], []);
+  // 🔐 Gumroad configuration
+  const GUMROAD_PRODUCT_ID = "YOUR_GUMROAD_PRODUCT_ID"; // Replace with your actual product ID from Gumroad
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [accessCode, setAccessCode] = useState("");
+  const [licenseKey, setLicenseKey] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const [step, setStep] = useState("intake"); // intake | research
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ export default function App() {
   // New: Modes (makes it feel like software, not chat)
   const [mode, setMode] = useState("Explore"); // Explore | Validate | Build | Launch
 
-  // New: “Workspace” tab
+  // New: "Workspace" tab
   const [view, setView] = useState("Research"); // Research | My Niches
 
   const [detailLevel, setDetailLevel] = useState("beginner"); // beginner | advanced
@@ -88,32 +90,70 @@ export default function App() {
 
   // Persist login
   useEffect(() => {
-    const token = localStorage.getItem("sessionToken");
-    if (token) setIsAuthenticated(true);
+    const savedLicense = localStorage.getItem("validatedLicense");
+    if (savedLicense) {
+      setIsAuthenticated(true);
+      setLicenseKey(savedLicense);
+    }
     setSavedNiches(readSaved());
   }, []);
 
-  const handleVerifyAccess = async () => {
-    const code = accessCode.trim().toUpperCase();
-    if (!code) return alert("Please enter your access code");
+  const verifyGumroadLicense = async (key) => {
+    // Gumroad License Verification API
+    // Documentation: https://app.gumroad.com/api
+    
+    const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        product_id: GUMROAD_PRODUCT_ID,
+        license_key: key,
+        increment_uses_count: "false", // Set to "true" if you want to track usage
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  };
+
+  const handleVerifyLicense = async () => {
+    const key = licenseKey.trim();
+    if (!key) {
+      setAuthError("Please enter your license key");
+      return;
+    }
 
     setAuthLoading(true);
+    setAuthError("");
+
     try {
-      if (VALID_CODES.includes(code)) {
-        localStorage.setItem("sessionToken", "session-" + Date.now());
+      const result = await verifyGumroadLicense(key);
+
+      if (result.success && result.purchase) {
+        // License is valid
+        localStorage.setItem("validatedLicense", key);
+        localStorage.setItem("licenseData", JSON.stringify(result.purchase));
         setIsAuthenticated(true);
-        alert("✅ Access granted!");
+        showToast("✅ License activated successfully!");
       } else {
-        alert("❌ Invalid access code.");
+        // License is invalid
+        setAuthError(result.message || "Invalid license key. Please check and try again.");
       }
+    } catch (error) {
+      console.error("License verification error:", error);
+      setAuthError("Unable to verify license. Please check your connection and try again.");
     } finally {
       setAuthLoading(false);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("sessionToken");
+    localStorage.removeItem("validatedLicense");
+    localStorage.removeItem("licenseData");
     setIsAuthenticated(false);
+    setLicenseKey("");
     setStep("intake");
     setChatHistory([]);
     setScorecard(null);
@@ -147,7 +187,7 @@ export default function App() {
     return aiText;
   };
 
-  // --- Parsing logic (makes results feel “tool-like”) ---
+  // --- Parsing logic (makes results feel "tool-like") ---
   const parseScorecard = (text) => {
     // Looks for:
     // Demand: 7/10
@@ -173,7 +213,7 @@ export default function App() {
   };
 
   const parseNextActions = (text) => {
-    // Find “NEXT 3 ACTIONS” block, then grab numbered lines 1..3
+    // Find "NEXT 3 ACTIONS" block, then grab numbered lines 1..3
     const blockMatch =
       text.match(/NEXT\s*3\s*ACTIONS[\s\S]*?(?=\n#{1,3}\s|\n[A-Z][A-Z \-]{4,}:|\n🔍|\n$)/i) ||
       text.match(/NEXT\s*3\s*ACTIONS[\s\S]*$/i);
@@ -356,35 +396,58 @@ Be honest. Avoid fluff.`;
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <div className="text-center mb-6">
             <div className="inline-block p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mb-4">
-              <TrendingUp className="w-12 h-12 text-indigo-600" />
+              <Key className="w-12 h-12 text-indigo-600" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{productName}</h1>
-            <p className="text-gray-600">Enter your access code to get started</p>
+            <p className="text-gray-600">Enter your Gumroad license key</p>
           </div>
 
-          <input
-            value={accessCode}
-            onChange={(e) => setAccessCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleVerifyAccess()}
-            placeholder="TEST-123456"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 focus:border-indigo-500 focus:outline-none text-lg font-mono text-center uppercase"
-            disabled={authLoading}
-          />
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">License Key</label>
+            <input
+              value={licenseKey}
+              onChange={(e) => {
+                setLicenseKey(e.target.value);
+                setAuthError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleVerifyLicense()}
+              placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-2 focus:border-indigo-500 focus:outline-none text-sm font-mono text-center uppercase"
+              disabled={authLoading}
+            />
+            {authError && (
+              <div className="text-red-600 text-sm mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                {authError}
+              </div>
+            )}
+          </div>
 
           <button
-            onClick={handleVerifyAccess}
+            onClick={handleVerifyLicense}
             disabled={authLoading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 text-lg disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
           >
             {authLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Verifying...
+                Verifying License...
               </>
             ) : (
-              "🔓 Activate Access"
+              "🔓 Activate License"
             )}
           </button>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600 mb-2">Don't have a license?</p>
+            <a
+              href="https://gumroad.com/YOUR_PRODUCT_LINK"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm"
+            >
+              Purchase on Gumroad →
+            </a>
+          </div>
         </div>
       </div>
     );
