@@ -1,23 +1,28 @@
-// app/api/license/route.js (for Next.js 13+ App Router)
-// OR pages/api/license.js (for Next.js Pages Router)
+// app/api/license/route.js (for App Router)
+// OR pages/api/license.js (for Pages Router)
 
 export async function POST(req) {
+  console.log("License verification endpoint hit");
+  
   try {
-    const { licenseKey } = await req.json();
+    const body = await req.json();
+    console.log("Request body:", body);
+    
+    const { licenseKey } = body;
 
     if (!licenseKey) {
       return Response.json({ ok: false, error: "License key required" }, { status: 400 });
     }
 
-    // Your Gumroad product ID from environment variables
     const GUMROAD_PRODUCT_ID = process.env.GUMROAD_PRODUCT_ID;
+    console.log("Product ID from env:", GUMROAD_PRODUCT_ID ? "Found" : "Missing");
 
     if (!GUMROAD_PRODUCT_ID) {
-      console.error("GUMROAD_PRODUCT_ID not set in environment variables");
+      console.error("GUMROAD_PRODUCT_ID not set!");
       return Response.json({ ok: false, error: "Server configuration error" }, { status: 500 });
     }
 
-    // Verify with Gumroad
+    console.log("Calling Gumroad API...");
     const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
       method: "POST",
       headers: {
@@ -31,17 +36,14 @@ export async function POST(req) {
     });
 
     const data = await response.json();
-
-    console.log("Gumroad response:", data); // Debug logging
+    console.log("Gumroad response:", data);
 
     if (data.success && data.purchase) {
-      // License is valid - store in session/cookie
       return Response.json({ 
         ok: true, 
         purchase: data.purchase 
       });
     } else {
-      // License is invalid
       return Response.json({ 
         ok: false, 
         error: "Invalid license key",
@@ -53,7 +55,7 @@ export async function POST(req) {
     console.error("License verification error:", error);
     return Response.json({ 
       ok: false, 
-      error: "Verification failed" 
+      error: error.message || "Verification failed" 
     }, { status: 500 });
   }
 }
