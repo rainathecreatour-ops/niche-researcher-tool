@@ -22,9 +22,7 @@ import {
 export default function App() {
   const productName = "Niche Researcher Tool";
 
-  // 🔐 Gumroad configuration
-  const GUMROAD_PRODUCT_ID = "9K3D-SEADxtrDun50TytsA=="; // Replace with your actual product ID from Gumroad
-
+  // 🔐 Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -34,12 +32,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
-  // New: Modes (makes it feel like software, not chat)
   const [mode, setMode] = useState("Explore"); // Explore | Validate | Build | Launch
-
-  // New: "Workspace" tab
   const [view, setView] = useState("Research"); // Research | My Niches
-
   const [detailLevel, setDetailLevel] = useState("beginner"); // beginner | advanced
 
   const [nicheData, setNicheData] = useState({
@@ -51,12 +45,8 @@ export default function App() {
 
   const [chatHistory, setChatHistory] = useState([]);
   const [currentMessage, setCurrentMessage] = useState("");
-
-  // New: Parsed structured outputs
   const [scorecard, setScorecard] = useState(null);
   const [nextActions, setNextActions] = useState([]);
-
-  // New: Saved niches
   const [savedNiches, setSavedNiches] = useState([]);
   const [toast, setToast] = useState("");
 
@@ -98,26 +88,6 @@ export default function App() {
     setSavedNiches(readSaved());
   }, []);
 
-  const verifyGumroadLicense = async (key) => {
-    // Gumroad License Verification API
-    // Documentation: https://app.gumroad.com/api
-    
-    const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        product_id: GUMROAD_PRODUCT_ID,
-        license_key: key,
-        increment_uses_count: "false", // Set to "true" if you want to track usage
-      }),
-    });
-
-    const data = await response.json();
-    return data;
-  };
-
   const handleVerifyLicense = async () => {
     const key = licenseKey.trim();
     if (!key) {
@@ -129,17 +99,22 @@ export default function App() {
     setAuthError("");
 
     try {
-      const result = await verifyGumroadLicense(key);
+      const res = await fetch("/api/license", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: key }),
+      });
 
-      if (result.success && result.purchase) {
-        // License is valid
+      const data = await res.json();
+
+      if (data.ok) {
         localStorage.setItem("validatedLicense", key);
-        localStorage.setItem("licenseData", JSON.stringify(result.purchase));
+        localStorage.setItem("licenseData", JSON.stringify(data.purchase));
         setIsAuthenticated(true);
         showToast("✅ License activated successfully!");
       } else {
-        // License is invalid
-        setAuthError(result.message || "Invalid license key. Please check and try again.");
+        const errorMsg = data.gumroad?.message || data.error || "Invalid license key. Please check and try again.";
+        setAuthError(errorMsg);
       }
     } catch (error) {
       console.error("License verification error:", error);
@@ -187,14 +162,7 @@ export default function App() {
     return aiText;
   };
 
-  // --- Parsing logic (makes results feel "tool-like") ---
   const parseScorecard = (text) => {
-    // Looks for:
-    // Demand: 7/10
-    // Competition: 6/10
-    // Monetization: 8/10
-    // Speed: 7/10
-    // Overall: 78/100
     const get10 = (label) => {
       const m = text.match(new RegExp(`${label}\\s*:\\s*(\\d{1,2})\\s*/\\s*10`, "i"));
       return m ? Math.max(0, Math.min(10, parseInt(m[1], 10))) : null;
@@ -213,7 +181,6 @@ export default function App() {
   };
 
   const parseNextActions = (text) => {
-    // Find "NEXT 3 ACTIONS" block, then grab numbered lines 1..3
     const blockMatch =
       text.match(/NEXT\s*3\s*ACTIONS[\s\S]*?(?=\n#{1,3}\s|\n[A-Z][A-Z \-]{4,}:|\n🔍|\n$)/i) ||
       text.match(/NEXT\s*3\s*ACTIONS[\s\S]*$/i);
@@ -221,7 +188,6 @@ export default function App() {
     if (!blockMatch) return [];
 
     const block = blockMatch[0];
-
     const lines = block
       .split("\n")
       .map((l) => l.trim())
@@ -317,7 +283,6 @@ Be honest. Avoid fluff.`;
     try {
       const aiResponse = await callAI({ messages: newHistory.slice(-10) });
 
-      // Keep parsing updated score/actions if AI returns them again
       const sc = parseScorecard(aiResponse);
       const actions = parseNextActions(aiResponse);
       if (sc) setScorecard(sc);
@@ -351,7 +316,6 @@ Be honest. Avoid fluff.`;
     setNicheData({ niche: "", buyer: "", platform: "", productType: "" });
   };
 
-  // --- New: Save/Load/Delete niches ---
   const handleSaveNiche = () => {
     if (!nicheData.niche) return alert("Add a niche first.");
 
@@ -389,7 +353,6 @@ Be honest. Avoid fluff.`;
     showToast("🗑️ Deleted");
   };
 
-  // --- Login screen ---
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center p-4">
@@ -455,7 +418,6 @@ Be honest. Avoid fluff.`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black text-white px-4 py-2 rounded-lg text-sm shadow">
           {toast}
@@ -475,115 +437,65 @@ Be honest. Avoid fluff.`;
           </div>
 
           <div className="flex gap-2 items-center">
-            {/* Mode selector */}
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm"
-              title="Choose your workflow stage"
-            >
+            <select value={mode} onChange={(e) => setMode(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
               <option>Explore</option>
               <option>Validate</option>
               <option>Build</option>
               <option>Launch</option>
             </select>
 
-            {/* Detail level */}
-            <select
-              value={detailLevel}
-              onChange={(e) => setDetailLevel(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm"
-              title="How detailed should the AI be?"
-            >
+            <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
               <option value="beginner">Beginner</option>
               <option value="advanced">Advanced</option>
             </select>
 
             {step === "research" && (
               <>
-                <button
-                  onClick={handleSaveNiche}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-                  title="Save this niche to your workspace"
-                >
+                <button onClick={handleSaveNiche} className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
                   <Star className="w-4 h-4" /> Save
                 </button>
-
-                <button
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  title="Download your research"
-                >
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
                   <Download className="w-4 h-4" /> Export
                 </button>
-
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                  title="Start a new niche"
-                >
+                <button onClick={handleReset} className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
                   <Plus className="w-4 h-4" /> New
                 </button>
               </>
             )}
 
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-              title="How this works"
-            >
+            <button onClick={() => setShowHelp(!showHelp)} className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
               <HelpCircle className="w-4 h-4" /> Help
             </button>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-              title="Log out"
-            >
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
               Logout
             </button>
           </div>
         </div>
 
-        {/* Workspace tabs */}
         <div className="max-w-7xl mx-auto px-4 pb-4 flex gap-2">
-          <button
-            onClick={() => setView("Research")}
-            className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 border ${
-              view === "Research" ? "bg-white" : "bg-gray-50"
-            }`}
-          >
+          <button onClick={() => setView("Research")} className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 border ${view === "Research" ? "bg-white" : "bg-gray-50"}`}>
             <BarChart3 className="w-4 h-4" /> Research
           </button>
-          <button
-            onClick={() => setView("My Niches")}
-            className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 border ${
-              view === "My Niches" ? "bg-white" : "bg-gray-50"
-            }`}
-          >
+          <button onClick={() => setView("My Niches")} className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 border ${view === "My Niches" ? "bg-white" : "bg-gray-50"}`}>
             <LayoutList className="w-4 h-4" /> My Niches ({savedNiches.length})
           </button>
         </div>
       </header>
 
-      {/* Help modal */}
       {showHelp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-2xl font-bold">How to Use</h2>
-              <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-gray-600">
-                ✕
-              </button>
+              <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
             <div className="p-6 space-y-4 text-gray-700">
               <div className="flex gap-3">
                 <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
                 <div>
                   <div className="font-semibold">This is a workspace</div>
-                  <div className="text-sm text-gray-600">
-                    Save niches, compare ideas, and build a library of research over time.
-                  </div>
+                  <div className="text-sm text-gray-600">Save niches, compare ideas, and build a library of research over time.</div>
                 </div>
               </div>
               <div className="text-sm text-gray-600">
@@ -591,10 +503,7 @@ Be honest. Avoid fluff.`;
               </div>
             </div>
             <div className="p-6 bg-gray-50 border-t">
-              <button
-                onClick={() => setShowHelp(false)}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700"
-              >
+              <button onClick={() => setShowHelp(false)} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">
                 Got it!
               </button>
             </div>
@@ -603,18 +512,13 @@ Be honest. Avoid fluff.`;
       )}
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* VIEW: My Niches */}
         {view === "My Niches" && (
           <div className="bg-white border rounded-2xl shadow p-6">
             <h2 className="text-2xl font-bold mb-2">My Niches</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Your saved research sessions live here. Load one to continue where you left off.
-            </p>
+            <p className="text-sm text-gray-600 mb-6">Your saved research sessions live here. Load one to continue where you left off.</p>
 
             {savedNiches.length === 0 ? (
-              <div className="text-gray-600">
-                No saved niches yet. Run a research session, then click <b>Save</b>.
-              </div>
+              <div className="text-gray-600">No saved niches yet. Run a research session, then click <b>Save</b>.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {savedNiches.map((item) => (
@@ -626,35 +530,23 @@ Be honest. Avoid fluff.`;
                           {item.mode || "Explore"} • {new Date(item.createdAt).toLocaleString()}
                         </div>
                         <div className="text-sm text-gray-700 mt-2">
-                          Platform: <b>{item.nicheData?.platform || "—"}</b> • Type:{" "}
-                          <b>{item.nicheData?.productType || "—"}</b>
+                          Platform: <b>{item.nicheData?.platform || "—"}</b> • Type: <b>{item.nicheData?.productType || "—"}</b>
                         </div>
-
                         {item.scorecard?.overall != null && (
                           <div className="mt-2 text-sm">
-                            Overall Score:{" "}
-                            <span className="font-bold text-indigo-700">{item.scorecard.overall}/100</span>
+                            Overall Score: <span className="font-bold text-indigo-700">{item.scorecard.overall}/100</span>
                           </div>
                         )}
                       </div>
-
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleLoadNiche(item)}
-                          className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                        >
+                        <button onClick={() => handleLoadNiche(item)} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
                           Load
                         </button>
-                        <button
-                          onClick={() => handleDeleteNiche(item.id)}
-                          className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                          title="Delete"
-                        >
+                        <button onClick={() => handleDeleteNiche(item.id)} className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-
                     {Array.isArray(item.nextActions) && item.nextActions.length > 0 && (
                       <div className="mt-3 bg-gray-50 border rounded-lg p-3">
                         <div className="text-xs font-semibold text-gray-600 mb-1">NEXT ACTIONS</div>
@@ -672,7 +564,6 @@ Be honest. Avoid fluff.`;
           </div>
         )}
 
-        {/* VIEW: Research */}
         {view === "Research" && (
           <>
             {step === "intake" && (
@@ -699,11 +590,7 @@ Be honest. Avoid fluff.`;
                       />
                       <div className="mt-2 flex flex-wrap gap-2">
                         {nicheExamples.map((ex, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setNicheData({ ...nicheData, niche: ex })}
-                            className="text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-indigo-100"
-                          >
+                          <button key={i} onClick={() => setNicheData({ ...nicheData, niche: ex })} className="text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-indigo-100">
                             {ex}
                           </button>
                         ))}
@@ -723,11 +610,7 @@ Be honest. Avoid fluff.`;
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">3. Where to sell?</label>
-                      <select
-                        value={nicheData.platform}
-                        onChange={(e) => setNicheData({ ...nicheData, platform: e.target.value })}
-                        className="w-full px-4 py-3 border rounded-lg"
-                      >
+                      <select value={nicheData.platform} onChange={(e) => setNicheData({ ...nicheData, platform: e.target.value })} className="w-full px-4 py-3 border rounded-lg">
                         <option value="">Select platform...</option>
                         <option value="Etsy">Etsy</option>
                         <option value="Amazon">Amazon</option>
@@ -742,11 +625,7 @@ Be honest. Avoid fluff.`;
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">4. Product type?</label>
-                      <select
-                        value={nicheData.productType}
-                        onChange={(e) => setNicheData({ ...nicheData, productType: e.target.value })}
-                        className="w-full px-4 py-3 border rounded-lg"
-                      >
+                      <select value={nicheData.productType} onChange={(e) => setNicheData({ ...nicheData, productType: e.target.value })} className="w-full px-4 py-3 border rounded-lg">
                         <option value="">Select...</option>
                         <option value="Digital">📄 Digital Products</option>
                         <option value="Physical">📦 Physical Products</option>
@@ -770,35 +649,20 @@ Be honest. Avoid fluff.`;
 
             {step === "research" && (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Left: Scorecard + Next actions */}
                 <div className="lg:col-span-1 space-y-4">
                   <div className="bg-white rounded-lg shadow-lg p-5 border">
                     <h3 className="font-bold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-indigo-600" />
                       Scorecard
                     </h3>
-
                     {!scorecard ? (
                       <p className="text-sm text-gray-600 mt-3">Run research to generate scores.</p>
                     ) : (
                       <div className="mt-4 space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Demand</span>
-                          <b>{scorecard.demand ?? "—"}/10</b>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Competition</span>
-                          <b>{scorecard.competition ?? "—"}/10</b>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Monetization</span>
-                          <b>{scorecard.monetization ?? "—"}/10</b>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Speed</span>
-                          <b>{scorecard.speed ?? "—"}/10</b>
-                        </div>
-
+                        <div className="flex justify-between"><span>Demand</span><b>{scorecard.demand ?? "—"}/10</b></div>
+                        <div className="flex justify-between"><span>Competition</span><b>{scorecard.competition ?? "—"}/10</b></div>
+                        <div className="flex justify-between"><span>Monetization</span><b>{scorecard.monetization ?? "—"}/10</b></div>
+                        <div className="flex justify-between"><span>Speed</span><b>{scorecard.speed ?? "—"}/10</b></div>
                         <div className="mt-3 pt-3 border-t flex justify-between text-base">
                           <span className="font-semibold">Overall</span>
                           <span className="font-bold text-indigo-700">{scorecard.overall ?? "—"}/100</span>
@@ -812,7 +676,6 @@ Be honest. Avoid fluff.`;
                       <Target className="w-5 h-5 text-green-600" />
                       Next 3 Actions
                     </h3>
-
                     {nextActions.length === 0 ? (
                       <p className="text-sm text-gray-600 mt-3">Your plan will appear here after research.</p>
                     ) : (
@@ -825,31 +688,19 @@ Be honest. Avoid fluff.`;
                   </div>
                 </div>
 
-                {/* Right: Chat */}
                 <div className="lg:col-span-3">
                   <div className="bg-white rounded-lg shadow-lg border flex flex-col" style={{ height: "75vh" }}>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                       {chatHistory.map((msg, idx) => (
                         <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                          <div
-                            className={`max-w-3xl rounded-lg p-4 ${
-                              msg.role === "user"
-                                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                                : "bg-gray-50 border"
-                            }`}
-                          >
-                            <div
-                              className={`text-xs font-semibold mb-2 ${
-                                msg.role === "user" ? "text-indigo-100" : "text-gray-500"
-                              }`}
-                            >
+                          <div className={`max-w-3xl rounded-lg p-4 ${msg.role === "user" ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : "bg-gray-50 border"}`}>
+                            <div className={`text-xs font-semibold mb-2 ${msg.role === "user" ? "text-indigo-100" : "text-gray-500"}`}>
                               {msg.role === "user" ? "YOU" : "🤖 AI"}
                             </div>
                             <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
                           </div>
                         </div>
                       ))}
-
                       {loading && (
                         <div className="flex justify-start">
                           <div className="bg-gray-50 border rounded-lg p-4 flex items-center gap-3">
@@ -882,56 +733,25 @@ Be honest. Avoid fluff.`;
 
                       <div className="flex flex-wrap gap-2">
                         <button
-                          title="Quick launch plan"
                           onClick={() => handleSendMessage("Quick plan: product, price, week 1, where to sell")}
                           disabled={loading}
                           className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg text-sm hover:from-green-700 hover:to-emerald-700 font-semibold disabled:opacity-50"
                         >
                           🚀 Build This
                         </button>
-
-                        <button
-                          title="Find 3 more problems"
-                          onClick={() => handleSendMessage("3 more problems")}
-                          disabled={loading}
-                          className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
-                        >
+                        <button onClick={() => handleSendMessage("3 more problems")} disabled={loading} className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
                           🔍 Go Deeper
                         </button>
-
-                        <button
-                          title="Turn this into an AI tool"
-                          onClick={() => handleSendMessage("AI tool: features + tech")}
-                          disabled={loading}
-                          className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50 disabled:opacity-50"
-                        >
+                        <button onClick={() => handleSendMessage("AI tool: features + tech")} disabled={loading} className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50 disabled:opacity-50">
                           🤖 AI Tool
                         </button>
-
-                        <button
-                          title="Automation ideas to save time"
-                          onClick={() => handleSendMessage("3 automation ideas")}
-                          disabled={loading}
-                          className="px-3 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50"
-                        >
+                        <button onClick={() => handleSendMessage("3 automation ideas")} disabled={loading} className="px-3 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50">
                           ⚡ Automation
                         </button>
-
-                        <button
-                          title="Optimized listing copy"
-                          onClick={() => handleSendMessage("Product listing: title + description")}
-                          disabled={loading}
-                          className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg text-sm hover:bg-green-50 disabled:opacity-50"
-                        >
+                        <button onClick={() => handleSendMessage("Product listing: title + description")} disabled={loading} className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg text-sm hover:bg-green-50 disabled:opacity-50">
                           ✍️ Listing
                         </button>
-
-                        <button
-                          title="Top 3 marketing channels"
-                          onClick={() => handleSendMessage("Top 3 marketing channels")}
-                          disabled={loading}
-                          className="px-3 py-1.5 bg-white border border-pink-300 text-pink-700 rounded-lg text-sm hover:bg-pink-50 disabled:opacity-50"
-                        >
+                        <button onClick={() => handleSendMessage("Top 3 marketing channels")} disabled={loading} className="px-3 py-1.5 bg-white border border-pink-300 text-pink-700 rounded-lg text-sm hover:bg-pink-50 disabled:opacity-50">
                           📢 Marketing
                         </button>
                       </div>
