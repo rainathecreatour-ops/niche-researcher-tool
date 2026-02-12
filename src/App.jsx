@@ -23,7 +23,7 @@ export default function App() {
   const productName = "Niche Researcher Tool";
 
   // 🔐 Gumroad configuration
-  const GUMROAD_PRODUCT_ID = "YOUR_GUMROAD_PRODUCT_ID"; // Replace with your actual product ID from Gumroad
+  const GUMROAD_PRODUCT_ID = "9K3D-SEADxtrDun50TytsA=="; // Replace with your actual product ID from Gumroad
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
