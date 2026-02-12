@@ -1,28 +1,46 @@
-// app/api/license/route.js (for App Router)
-// OR pages/api/license.js (for Pages Router)
+// Save this as: /api/license.js (at root level, NOT in /src)
 
-export async function POST(req) {
-  console.log("License verification endpoint hit");
+export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  console.log("✅ License verification endpoint hit");
   
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
   try {
-    const body = await req.json();
-    console.log("Request body:", body);
-    
-    const { licenseKey } = body;
+    const { licenseKey } = req.body;
 
     if (!licenseKey) {
-      return Response.json({ ok: false, error: "License key required" }, { status: 400 });
+      console.error("❌ No license key provided");
+      return res.status(400).json({ ok: false, error: "License key required" });
     }
 
     const GUMROAD_PRODUCT_ID = process.env.GUMROAD_PRODUCT_ID;
-    console.log("Product ID from env:", GUMROAD_PRODUCT_ID ? "Found" : "Missing");
-
+    
     if (!GUMROAD_PRODUCT_ID) {
-      console.error("GUMROAD_PRODUCT_ID not set!");
-      return Response.json({ ok: false, error: "Server configuration error" }, { status: 500 });
+      console.error("❌ GUMROAD_PRODUCT_ID environment variable not set!");
+      return res.status(500).json({ 
+        ok: false, 
+        error: "Server configuration error - contact support" 
+      });
     }
 
-    console.log("Calling Gumroad API...");
+    console.log("🔍 Verifying license with Gumroad...");
+    
     const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
       method: "POST",
       headers: {
@@ -36,26 +54,28 @@ export async function POST(req) {
     });
 
     const data = await response.json();
-    console.log("Gumroad response:", data);
+    console.log("📦 Gumroad response:", JSON.stringify(data, null, 2));
 
     if (data.success && data.purchase) {
-      return Response.json({ 
+      console.log("✅ License valid!");
+      return res.status(200).json({ 
         ok: true, 
         purchase: data.purchase 
       });
     } else {
-      return Response.json({ 
+      console.log("❌ License invalid:", data.message);
+      return res.status(400).json({ 
         ok: false, 
         error: "Invalid license key",
         gumroad: data 
-      }, { status: 400 });
+      });
     }
 
   } catch (error) {
-    console.error("License verification error:", error);
-    return Response.json({ 
+    console.error("💥 License verification error:", error);
+    return res.status(500).json({ 
       ok: false, 
       error: error.message || "Verification failed" 
-    }, { status: 500 });
+    });
   }
 }
