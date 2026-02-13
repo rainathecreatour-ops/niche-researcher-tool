@@ -3,64 +3,83 @@ import { NextResponse } from "next/server";
 const VERIFY_URL = "https://api.gumroad.com/v2/licenses/verify";
 
 export async function POST(req) {
-  console.log("🔐 License verification endpoint hit");
+  console.log("=== LICENSE VERIFICATION DEBUG ===");
   
   try {
-    const { licenseKey } = await req.json();
+    const body = await req.json();
+    const licenseKey = body.licenseKey;
     const productId = process.env.GUMROAD_PRODUCT_ID;
 
-    console.log("Product ID:", productId ? "✅ Found" : "❌ Missing");
+    console.log("1. License Key received:", licenseKey);
+    console.log("2. Product ID from env:", productId);
+    console.log("3. Product ID exists?", !!productId);
 
     if (!productId) {
-     return NextResponse.json(
-  { ok: false, error: data?.message || "That license key is not valid.", debug: data },
-  { status: 401 }
-);
-}
-
-    const key = (licenseKey || "").trim();
-    if (key.length < 10) {
+      console.error("ERROR: GUMROAD_PRODUCT_ID not set!");
       return NextResponse.json(
-        { ok: false, error: "Enter a valid Gumroad license key." },
+        { ok: false, error: "Server config error: Missing product ID" },
+        { status: 500 }
+      );
+    }
+
+    if (!licenseKey || licenseKey.trim().length < 10) {
+      console.error("ERROR: Invalid license key format");
+      return NextResponse.json(
+        { ok: false, error: "Please enter a valid license key" },
         { status: 400 }
       );
     }
 
-    const body = new URLSearchParams();
-    body.set("product_id", productId);
-    body.set("license_key", key);
-    body.set("increment_uses_count", "false");
+    // Prepare request to Gumroad
+    const formBody = new URLSearchParams();
+    formBody.set("product_id", productId);
+    formBody.set("license_key", licenseKey.trim());
+    formBody.set("increment_uses_count", "false");
 
-    console.log("🔍 Calling Gumroad API...");
+    console.log("4. Sending to Gumroad:");
+    console.log("   - product_id:", productId);
+    console.log("   - license_key:", licenseKey.trim());
 
-    const r = await fetch(VERIFY_URL, {
+    // Call Gumroad API
+    const response = await fetch(VERIFY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-      cache: "no-store",
+      body: formBody,
     });
 
-    const data = await r.json();
-    console.log("📦 Gumroad response:", JSON.stringify(data, null, 2));
-
-    if (!data?.success) {
-      // Pass the full Gumroad response back to the frontend
+    const data = await response.json();
+    
+    console.log("5. Gumroad HTTP Status:", response.status);
+    console.log("6. Gumroad Full Response:", JSON.stringify(data, null, 2));
+    console.log("7. Success?", data.success);
+    console.log("8. Message:", data.message);
+    
+    if (!data.success) {
+      console.log("FAILED - Gumroad rejected the license");
       return NextResponse.json(
         { 
           ok: false, 
-          error: data?.message || "That license key is not valid.",
-          gumroad: data // Include full Gumroad response for debugging
+          error: data.message || "Invalid license key",
+          gumroad: data,
+          debug: {
+            productId: productId,
+            licenseKey: licenseKey.trim()
+          }
         },
         { status: 401 }
       );
     }
 
-    console.log("✅ License valid!");
-    return NextResponse.json({ ok: true, purchase: data.purchase || null });
-  } catch (err) {
-    console.error("💥 Error:", err);
+    console.log("SUCCESS - License is valid!");
+    return NextResponse.json({ 
+      ok: true, 
+      purchase: data.purchase 
+    });
+
+  } catch (error) {
+    console.error("EXCEPTION:", error);
     return NextResponse.json(
-      { ok: false, error: "Verification failed." },
+      { ok: false, error: "Server error: " + error.message },
       { status: 500 }
     );
   }
