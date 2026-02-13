@@ -1,3 +1,10 @@
+// Save this as: /api/license.js (Vercel Serverless Function) OR /pages/api/license.js (Next.js Pages Router)
+//
+// This verifies a Gumroad license key against your product permalink.
+//
+// Required env var on Vercel:
+// - GUMROAD_PRODUCT_PERMALINK
+
 export default async function handler(req, res) {
   // CORS (safe for public license verification endpoint)
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -21,11 +28,11 @@ export default async function handler(req, res) {
     const licenseKey = (body.licenseKey || body.license_key || "").toString().trim();
     if (!licenseKey) return res.status(400).json({ ok: false, error: "License key required" });
 
-    const productId = (process.env.GUMROAD_PRODUCT_ID || "").toString().trim();
-    if (!productId) {
+    const productPermalink = (process.env.GUMROAD_PRODUCT_PERMALINK || "").toString().trim();
+    if (!productPermalink) {
       return res.status(500).json({
         ok: false,
-        error: "Server configuration error: GUMROAD_PRODUCT_ID is not set",
+        error: "Server configuration error: GUMROAD_PRODUCT_PERMALINK is not set",
       });
     }
 
@@ -33,7 +40,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        product_id: productId,
+        product_permalink: productPermalink,
         license_key: licenseKey,
         // Keep this false so simply checking doesn't consume/lock activations.
         increment_uses_count: "false",
