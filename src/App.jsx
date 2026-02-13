@@ -82,46 +82,62 @@ export default function App() {
   useEffect(() => {
     const savedLicense = localStorage.getItem("validatedLicense");
     if (savedLicense) {
-      setIsAuthenticated(true);
+      // Restore key into the field, then silently re-verify on load
       setLicenseKey(savedLicense);
+      verifyLicense(savedLicense, { silent: true });
     }
     setSavedNiches(readSaved());
   }, []);
 
-  const handleVerifyLicense = async () => {
-    const key = licenseKey.trim();
-    if (!key) {
-      setAuthError("Please enter your license key");
+  const verifyLicense = async (key, { silent = false } = {}) => {
+    const cleaned = (key || "").trim();
+    if (!cleaned) {
+      if (!silent) setAuthError("Please enter your license key");
       return;
     }
 
     setAuthLoading(true);
-    setAuthError("");
+    if (!silent) setAuthError("");
 
     try {
       const res = await fetch("/api/license", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: key }),
+        body: JSON.stringify({ licenseKey: cleaned }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (data.ok) {
-        localStorage.setItem("validatedLicense", key);
+        localStorage.setItem("validatedLicense", cleaned);
         localStorage.setItem("licenseData", JSON.stringify(data.purchase));
         setIsAuthenticated(true);
-        showToast("✅ License activated successfully!");
+        if (!silent) showToast("✅ License activated successfully!");
       } else {
-        const errorMsg = data.gumroad?.message || data.error || "Invalid license key. Please check and try again.";
-        setAuthError(errorMsg);
+        localStorage.removeItem("validatedLicense");
+        localStorage.removeItem("licenseData");
+        setIsAuthenticated(false);
+
+        const errorMsg =
+          data.gumroad?.message ||
+          data.error ||
+          "Invalid license key. Please check and try again.";
+
+        if (!silent) setAuthError(errorMsg);
       }
     } catch (error) {
       console.error("License verification error:", error);
-      setAuthError("Unable to verify license. Please check your connection and try again.");
+      if (!silent) setAuthError("Unable to verify license. Please check your connection and try again.");
+      localStorage.removeItem("validatedLicense");
+      localStorage.removeItem("licenseData");
+      setIsAuthenticated(false);
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  const handleVerifyLicense = async () => {
+    await verifyLicense(licenseKey);
   };
 
   const handleLogout = () => {
