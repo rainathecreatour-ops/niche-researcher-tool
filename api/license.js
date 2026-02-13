@@ -1,6 +1,7 @@
-// /api/license.js - Clean version with no syntax errors
+// /api/license.js - For Create React App on Vercel
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -20,49 +21,49 @@ export default async function handler(req, res) {
     if (!productId) {
       return res.status(500).json({
         ok: false,
-        error: 'Server configuration error'
+        error: 'Missing GUMROAD_PRODUCT_ID on server.'
       });
     }
 
-    if (!licenseKey || licenseKey.trim().length < 10) {
+    const key = (licenseKey || '').trim();
+    if (key.length < 10) {
       return res.status(400).json({
         ok: false,
-        error: 'Please enter a valid license key'
+        error: 'Enter a valid Gumroad license key.'
       });
     }
 
-    const formData = new URLSearchParams();
-    formData.append('product_id', productId);
-    formData.append('license_key', licenseKey.trim());
-    formData.append('increment_uses_count', 'false');
+    const body = new URLSearchParams();
+    body.set('product_id', productId);
+    body.set('license_key', key);
+    body.set('increment_uses_count', 'false');
 
     const response = await fetch('https://api.gumroad.com/v2/licenses/verify', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: formData
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
     });
 
     const data = await response.json();
 
-    if (!data.success) {
+    if (!data || !data.success) {
       return res.status(401).json({
         ok: false,
-        error: data.message || 'Invalid license key',
+        error: data?.message || 'That license key is not valid.',
         gumroad: data
       });
     }
 
     return res.status(200).json({
       ok: true,
-      purchase: data.purchase
+      purchase: data.purchase || null
     });
 
   } catch (error) {
+    console.error('License error:', error);
     return res.status(500).json({
       ok: false,
-      error: 'Verification failed'
+      error: 'Verification failed.'
     });
   }
-}
+};
