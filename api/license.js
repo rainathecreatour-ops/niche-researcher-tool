@@ -1,81 +1,77 @@
-// Save this as: /api/license.js (at root level, NOT in /src)
-
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  // CORS (safe for public license verification endpoint)
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    "Access-Control-Allow-Headers",
+    "Content-Type, X-Requested-With, Accept, Accept-Version, Content-Length, Date"
   );
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  console.log("✅ License verification endpoint hit");
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   try {
-    const { licenseKey } = req.body;
+    // Vercel/Next may provide req.body as object or string depending on runtime/config.
+    const body =
+      typeof req.body === "string"
+        ? JSON.parse(req.body || "{}")
+        : (req.body || {});
 
-    if (!licenseKey) {
-      console.error("❌ No license key provided");
-      return res.status(400).json({ ok: false, error: "License key required" });
-    }
+    const licenseKey = (body.licenseKey || body.license_key || "").toString().trim();
+    if (!licenseKey) return res.status(400).json({ ok: false, error: "License key required" });
 
-    const GUMROAD_PRODUCT_ID = process.env.GUMROAD_PRODUCT_ID;
-    
-    if (!GUMROAD_PRODUCT_ID) {
-      console.error("❌ GUMROAD_PRODUCT_ID environment variable not set!");
-      return res.status(500).json({ 
-        ok: false, 
-        error: "Server configuration error - contact support" 
+    const productId = (process.env.GUMROAD_PRODUCT_ID || "").toString().trim();
+    if (!productId) {
+      return res.status(500).json({
+        ok: false,
+        error: "Server configuration error: GUMROAD_PRODUCT_ID is not set",
       });
     }
 
-    console.log("🔍 Verifying license with Gumroad...");
-    
-    const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
+    const gumroadRes = await fetch("https://api.gumroad.com/v2/licenses/verify", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        product_id: GUMROAD_PRODUCT_ID,
-        license_key: licenseKey.trim(),
+        product_id: productId,
+        license_key: licenseKey,
+        // Keep this false so simply checking doesn't consume/lock activations.
         increment_uses_count: "false",
       }),
     });
 
-    const data = await response.json();
-    console.log("📦 Gumroad response:", JSON.stringify(data, null, 2));
+    const gumroadData = await gumroadRes.json().catch(() => ({}));
 
-    if (data.success && data.purchase) {
-      console.log("✅ License valid!");
-      return res.status(200).json({ 
-        ok: true, 
-        purchase: data.purchase 
-      });
-    } else {
-      console.log("❌ License invalid:", data.message);
-      return res.status(400).json({ 
-        ok: false, 
-        error: "Invalid license key",
-        gumroad: data 
-      });
+    // Gumroad returns { success: boolean, message?: string, purchase?: {...} }
+    if (gumroadData?.success && gumroadData?.purchase) {
+      const purchase = gumroadData.purchase;
+
+      // Optional safety checks (won't break valid licenses):
+      // If Gumroad marks refunded/chargebacked/disputed, treat as invalid access.
+      const refunded = Boolean(purchase.refunded);
+      const chargebacked = Boolean(purchase.chargebacked);
+      const disputed = Boolean(purchase.disputed);
+
+      if (refunded || chargebacked || disputed) {
+        return res.status(403).json({
+          ok: false,
+          error: "This purchase is no longer active.",
+          gumroad: gumroadData,
+        });
+      }
+
+      return res.status(200).json({ ok: true, purchase });
     }
 
-  } catch (error) {
-    console.error("💥 License verification error:", error);
-    return res.status(500).json({ 
-      ok: false, 
-      error: error.message || "Verification failed" 
+    return res.status(400).json({
+      ok: false,
+      error: gumroadData?.message || "Invalid license key",
+      gumroad: gumroadData,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Verification failed",
     });
   }
 }
