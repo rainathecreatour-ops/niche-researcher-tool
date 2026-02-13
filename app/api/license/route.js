@@ -12,11 +12,11 @@ export async function POST(req) {
     console.log("Product ID:", productId ? "✅ Found" : "❌ Missing");
 
     if (!productId) {
-      return NextResponse.json(
-        { ok: false, error: "Missing GUMROAD_PRODUCT_ID on server." },
-        { status: 500 }
-      );
-    }
+     return NextResponse.json(
+  { ok: false, error: data?.message || "That license key is not valid.", debug: data },
+  { status: 401 }
+);
+}
 
     const key = (licenseKey || "").trim();
     if (key.length < 10) {
