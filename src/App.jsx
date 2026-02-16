@@ -220,6 +220,76 @@ export default function App() {
 
   const buildInitialPrompt = () => {
     const depth = detailLevel === "advanced" ? "Advanced" : "Beginner";
+    const isBuildMode = mode === "Build";
+    
+    if (isBuildMode) {
+      return `You are an AI product development assistant. Your job is to create a COMPLETE, ACTIONABLE development roadmap that takes someone from idea to finished product.
+
+NICHE: ${nicheData.niche}
+BUYER: ${nicheData.buyer}
+PLATFORM: ${nicheData.platform}
+PRODUCT TYPE: ${nicheData.productType}
+DETAIL LEVEL: ${depth}
+
+Return in this exact structure:
+
+### SCORECARD
+Demand: X/10
+Competition: X/10
+Monetization: X/10
+Speed: X/10
+Overall: X/100
+
+### NEXT 3 ACTIONS
+1) ...
+2) ...
+3) ...
+
+### 🛠️ DEVELOPMENT ROADMAP
+
+**PRODUCT CONCEPT**
+- Exact product to build (be specific)
+- Core features (3-5 essential features)
+- Unique selling point
+
+**PHASE 1: FREE/EASY START (Week 1-2)**
+Step-by-step instructions using free tools:
+1. [Tool name - FREE] - What to do, exactly how
+2. [Tool name - FREE] - Next specific action
+3. [Tool name - FREE] - How to validate/test
+(List 5-7 concrete steps with free tools like Canva, Google Docs, Notion, Figma free tier, etc.)
+
+**PHASE 2: IMPROVED VERSION (Week 3-4)**
+When to upgrade and how:
+1. [Tool name - $X/mo or FREE] - Why upgrade, what it enables
+2. [Tool name - $X/mo or FREE] - Specific improvement
+3. [Tool name - $X/mo or FREE] - How to implement
+(List 4-6 steps mixing free + affordable paid tools)
+
+**PHASE 3: PROFESSIONAL/SCALED (Optional)**
+For serious scaling:
+1. [Tool name - $X/mo] - When you need this
+2. [Tool name - $X/mo] - What it unlocks
+3. [Tool name - $X/mo] - Implementation guide
+(List 3-5 advanced tools/services)
+
+**CREATION TIMELINE**
+- Week 1: [Specific tasks]
+- Week 2: [Specific tasks]
+- Week 3: [Specific tasks]
+- Week 4: Launch ready
+
+**TOOLS BREAKDOWN**
+FREE: [List specific free tools]
+PAID (Optional): [List paid tools with prices]
+WHEN TO UPGRADE: [Clear criteria]
+
+📌 PRICING + POSITIONING
+💡 MARKETING CHANNELS (platform-specific for ${nicheData.platform})
+
+Be extremely specific. Give exact tool names, exact steps, exact order. Make it impossible to get stuck.`;
+    }
+    
     return `You are an AI niche research assistant. Be clear, structured, and action-oriented.
 MODE: ${mode}
 DETAIL LEVEL: ${depth}
@@ -517,6 +587,12 @@ Be honest. Avoid fluff.`;
               <div className="text-sm text-gray-600">
                 Use <b>Modes</b> (Explore/Validate/Build/Launch) to get different kinds of outputs.
               </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="font-semibold text-green-900 mb-2">🛠️ Build Mode</div>
+                <div className="text-sm text-green-800">
+                  Select "Build" mode to get a complete step-by-step development roadmap that takes you from idea to finished product, starting with free tools and progressing to paid options as needed.
+                </div>
+              </div>
             </div>
             <div className="p-6 bg-gray-50 border-t">
               <button onClick={() => setShowHelp(false)} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">
@@ -749,11 +825,11 @@ Be honest. Avoid fluff.`;
 
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => handleSendMessage("Quick plan: product, price, week 1, where to sell")}
+                          onClick={() => handleSendMessage("Create complete step-by-step development roadmap from free tools to paid")}
                           disabled={loading}
                           className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg text-sm hover:from-green-700 hover:to-emerald-700 font-semibold disabled:opacity-50"
                         >
-                          🚀 Build This
+                          🚀 Development Roadmap
                         </button>
                         <button onClick={() => handleSendMessage("3 more problems")} disabled={loading} className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
                           🔍 Go Deeper
