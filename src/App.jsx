@@ -49,6 +49,7 @@ export default function App() {
   const [nextActions, setNextActions] = useState([]);
   const [savedNiches, setSavedNiches] = useState([]);
   const [toast, setToast] = useState("");
+  const [uploadedImage, setUploadedImage] = useState(null);
 
   const nicheExamples = [
     "Productivity tools for remote workers",
@@ -150,6 +151,7 @@ export default function App() {
     setScorecard(null);
     setNextActions([]);
     setNicheData({ niche: "", buyer: "", platform: "", productType: "" });
+    setUploadedImage(null);
   };
 
   const callAI = async ({ prompt, messages }) => {
@@ -223,7 +225,7 @@ export default function App() {
     const isBuildMode = mode === "Build";
     
     if (isBuildMode) {
-      return `You are an AI product development assistant. Your job is to create a COMPLETE, ACTIONABLE development roadmap that takes someone from idea to finished product.
+      return `You are an AI product development mentor. Your job is to EDUCATE and GUIDE someone through creating their product from absolute beginning to launch. Be encouraging, explain WHY each step matters, and make them feel confident.
 
 NICHE: ${nicheData.niche}
 BUYER: ${nicheData.buyer}
@@ -245,52 +247,42 @@ Overall: X/100
 2) ...
 3) ...
 
-### 🛠️ DEVELOPMENT ROADMAP
+### 🎯 CHOOSE YOUR PATH
 
-**PRODUCT CONCEPT**
-- Exact product to build (be specific)
-- Core features (3-5 essential features)
-- Unique selling point
+**MAIN NICHE: ${nicheData.niche}**
+[Brief description of building for the broad niche]
 
-**PHASE 1: FREE/EASY START (Week 1-2)**
-Step-by-step instructions using free tools:
-1. [Tool name - FREE] - What to do, exactly how
-2. [Tool name - FREE] - Next specific action
-3. [Tool name - FREE] - How to validate/test
-(List 5-7 concrete steps with free tools like Canva, Google Docs, Notion, Figma free tier, etc.)
+**OR FOCUS ON A SUB-NICHE:**
 
-**PHASE 2: IMPROVED VERSION (Week 3-4)**
-When to upgrade and how:
-1. [Tool name - $X/mo or FREE] - Why upgrade, what it enables
-2. [Tool name - $X/mo or FREE] - Specific improvement
-3. [Tool name - $X/mo or FREE] - How to implement
-(List 4-6 steps mixing free + affordable paid tools)
+**Option 1: [Sub-niche name]**
+- Target: [Specific buyer]
+- Why this works: [1-2 sentences]
+- Easiest to start: [Yes/No and why]
 
-**PHASE 3: PROFESSIONAL/SCALED (Optional)**
-For serious scaling:
-1. [Tool name - $X/mo] - When you need this
-2. [Tool name - $X/mo] - What it unlocks
-3. [Tool name - $X/mo] - Implementation guide
-(List 3-5 advanced tools/services)
+**Option 2: [Sub-niche name]**
+- Target: [Specific buyer]
+- Why this works: [1-2 sentences]
+- Best monetization: [Yes/No and why]
 
-**CREATION TIMELINE**
-- Week 1: [Specific tasks]
-- Week 2: [Specific tasks]
-- Week 3: [Specific tasks]
-- Week 4: Launch ready
+**Option 3: [Sub-niche name]**
+- Target: [Specific buyer]
+- Why this works: [1-2 sentences]
+- Fastest to launch: [Yes/No and why]
 
-**TOOLS BREAKDOWN**
-FREE: [List specific free tools]
-PAID (Optional): [List paid tools with prices]
-WHEN TO UPGRADE: [Clear criteria]
+**👉 RECOMMENDATION:** [Tell them which to pick and why based on their experience level]
 
-📌 PRICING + POSITIONING
-💡 MARKETING CHANNELS (platform-specific for ${nicheData.platform})
+After they choose, I'll create a complete visual template and step-by-step guide.
 
-Be extremely specific. Give exact tool names, exact steps, exact order. Make it impossible to get stuck.`;
+---
+
+💡 **What would you like to do?**
+- Reply "main niche" to build for the broad market
+- Reply "option 1" (or 2 or 3) to focus on a sub-niche
+- Upload an image/screenshot of a product you like and I'll create a similar template
+- Describe what you envision and I'll design it for you`;
     }
     
-    return `You are an AI niche research assistant. Be clear, structured, and action-oriented.
+    return `You are an AI niche research assistant. Be clear, structured, educational, and action-oriented. Explain concepts so beginners can understand.
 MODE: ${mode}
 DETAIL LEVEL: ${depth}
 
@@ -300,7 +292,7 @@ Buyer: ${nicheData.buyer}
 Platform: ${nicheData.platform}
 Product Type: ${nicheData.productType}
 
-Return in this exact structure (keep it readable, bullets ok):
+Return in this exact structure:
 
 ### SCORECARD
 Demand: X/10
@@ -315,13 +307,41 @@ Overall: X/100
 3) ...
 
 ### RESEARCH
-🔍 3 SUB-NICHES
-⚠️ TOP 3 PROBLEMS
-💡 3 PRODUCT IDEAS (include best format)
-📌 PRICING + POSITIONING
-📢 MARKETING THAT WORKS (platform-specific)
 
-Be honest. Avoid fluff.`;
+🔍 **3 SUB-NICHES**
+For each sub-niche, explain:
+- What it is
+- Who the specific buyer is
+- Why it's easier/more profitable than the main niche
+- One product idea for it
+
+⚠️ **TOP 3 PROBLEMS**
+For each problem:
+- Describe the problem clearly
+- Why this problem matters (impact on their life)
+- Current solutions and why they fail
+- How a product could solve it better
+
+💡 **3 PRODUCT IDEAS**
+For each idea:
+- Product name and format (ebook, course, template, tool, etc)
+- Core features (3-5 specific features)
+- Why buyers would pay for this
+- Rough pricing ($X-Y)
+- Time to create (X weeks)
+
+📌 **PRICING + POSITIONING**
+- Recommended price point and why
+- How to position it vs competitors
+- What makes it unique
+
+📢 **MARKETING THAT WORKS**
+For ${nicheData.platform}:
+- Best marketing channels (be specific)
+- Content strategies that work
+- How to find your first 100 customers
+
+Be honest. Avoid fluff. Educate them on WHY each recommendation matters.`;
   };
 
   const handleStartResearch = async () => {
@@ -400,6 +420,7 @@ Be honest. Avoid fluff.`;
     setScorecard(null);
     setNextActions([]);
     setNicheData({ niche: "", buyer: "", platform: "", productType: "" });
+    setUploadedImage(null);
   };
 
   const handleSaveNiche = () => {
@@ -437,6 +458,18 @@ Be honest. Avoid fluff.`;
     const updated = readSaved().filter((x) => x.id !== id);
     writeSaved(updated);
     showToast("🗑️ Deleted");
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setUploadedImage(event.target.result);
+      showToast("📸 Image uploaded! Now describe what you want to create based on this.");
+    };
+    reader.readAsDataURL(file);
   };
 
   if (!isAuthenticated) {
@@ -580,18 +613,49 @@ Be honest. Avoid fluff.`;
               <div className="flex gap-3">
                 <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
                 <div>
-                  <div className="font-semibold">This is a workspace</div>
-                  <div className="text-sm text-gray-600">Save niches, compare ideas, and build a library of research over time.</div>
+                  <div className="font-semibold">This is a workspace AND a mentor</div>
+                  <div className="text-sm text-gray-600">Save niches, compare ideas, and get step-by-step guidance on building your product.</div>
                 </div>
               </div>
-              <div className="text-sm text-gray-600">
-                Use <b>Modes</b> (Explore/Validate/Build/Launch) to get different kinds of outputs.
-              </div>
+              
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="font-semibold text-green-900 mb-2">🛠️ Build Mode</div>
-                <div className="text-sm text-green-800">
-                  Select "Build" mode to get a complete step-by-step development roadmap that takes you from idea to finished product, starting with free tools and progressing to paid options as needed.
+                <div className="font-semibold text-green-900 mb-2">🛠️ Build Mode (Recommended for Beginners)</div>
+                <div className="text-sm text-green-800 space-y-2">
+                  <p>Select <b>"Build"</b> mode to get:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Choice between main niche or 3 focused sub-niches</li>
+                    <li>Visual templates and mockup descriptions</li>
+                    <li>Step-by-step tool tutorials (free tools first!)</li>
+                    <li>Educational content explaining WHY each step matters</li>
+                    <li>Sample content and copy you can customize</li>
+                  </ul>
                 </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="font-semibold text-blue-900 mb-2">📸 Upload Reference Images</div>
+                <div className="text-sm text-blue-800">
+                  Click the camera icon (📷) to upload screenshots or images of products you like. The AI will analyze them and create similar templates for your product.
+                </div>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="font-semibold text-purple-900 mb-2">🎯 Other Modes</div>
+                <div className="text-sm text-purple-800 space-y-1">
+                  <p><b>Explore:</b> Research niches and discover opportunities</p>
+                  <p><b>Validate:</b> Test if your idea has real demand</p>
+                  <p><b>Launch:</b> Get marketing and launch strategies</p>
+                </div>
+              </div>
+
+              <div className="text-sm text-gray-600 border-t pt-3 mt-3">
+                <p className="font-semibold mb-1">💡 Pro Tips:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Use the quick action buttons below the chat for common tasks</li>
+                  <li>Ask follow-up questions if anything is unclear</li>
+                  <li>Save your research sessions to compare different niches</li>
+                  <li>Start with free tools, upgrade only when you have customers</li>
+                </ul>
               </div>
             </div>
             <div className="p-6 bg-gray-50 border-t">
@@ -804,16 +868,41 @@ Be honest. Avoid fluff.`;
                     </div>
 
                     <div className="border-t p-4 bg-gray-50">
+                      {uploadedImage && (
+                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <img src={uploadedImage} alt="Reference" className="w-16 h-16 object-cover rounded" />
+                            <span className="text-sm text-blue-700">Reference image uploaded</span>
+                          </div>
+                          <button 
+                            onClick={() => setUploadedImage(null)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                      
                       <div className="flex gap-2 mb-3">
                         <input
                           type="text"
                           value={currentMessage}
                           onChange={(e) => setCurrentMessage(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                          placeholder="Ask anything..."
+                          placeholder={uploadedImage ? "Describe what you want based on this image..." : "Ask anything..."}
                           className="flex-1 px-4 py-3 border rounded-lg"
                           disabled={loading}
                         />
+                        <label className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 cursor-pointer flex items-center gap-2">
+                          <span>📷</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            disabled={loading}
+                          />
+                        </label>
                         <button
                           onClick={() => handleSendMessage()}
                           disabled={loading}
@@ -825,26 +914,53 @@ Be honest. Avoid fluff.`;
 
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => handleSendMessage("Create complete step-by-step development roadmap from free tools to paid")}
+                          onClick={() => handleSendMessage("I've chosen [tell me which: main niche, option 1, 2, or 3]. Now create: 1) Visual template/mockup description 2) Complete step-by-step guide with screenshots/layouts 3) Exact tools to use (free first) 4) What each tool does and WHY 5) Sample content/copy to use")}
                           disabled={loading}
                           className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg text-sm hover:from-green-700 hover:to-emerald-700 font-semibold disabled:opacity-50"
                         >
-                          🚀 Development Roadmap
+                          🚀 Build My Product
                         </button>
-                        <button onClick={() => handleSendMessage("3 more problems")} disabled={loading} className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
-                          🔍 Go Deeper
+                        <button 
+                          onClick={() => handleSendMessage("Create a detailed visual template/mockup with: 1) Layout description (header, sections, footer) 2) Color scheme 3) Typography 4) Sample content for each section 5) What tools to use to build it (Canva, Figma, etc) 6) Step-by-step: open tool, create dimensions, add elements")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50 disabled:opacity-50"
+                        >
+                          🎨 Design Template
                         </button>
-                        <button onClick={() => handleSendMessage("AI tool: features + tech")} disabled={loading} className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50 disabled:opacity-50">
-                          🤖 AI Tool
+                        <button 
+                          onClick={() => handleSendMessage("I want to build an MVP. Tell me: 1) What an MVP is and why I need one 2) Best tools for beginners (Claude.ai, ChatGPT, Cursor, v0.dev, Bolt.new) 3) Exact prompts to give these AI tools 4) Step-by-step: sign up, paste prompt, customize output 5) How to test it with real users")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50"
+                        >
+                          💻 Build MVP
                         </button>
-                        <button onClick={() => handleSendMessage("3 automation ideas")} disabled={loading} className="px-3 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50">
-                          ⚡ Automation
+                        <button 
+                          onClick={() => handleSendMessage("I want to create an ebook/digital product. Guide me: 1) What format works best for my niche 2) Content structure (chapters/sections) 3) Free tools: Google Docs, Canva (how to use each) 4) Paid tools if I want professional: Designrr ($27-97), Vellum ($250) - what they do 5) How to write compelling content 6) Design tips for covers 7) Export as PDF")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border border-yellow-300 text-yellow-700 rounded-lg text-sm hover:bg-yellow-50 disabled:opacity-50"
+                        >
+                          📚 Create Ebook
                         </button>
-                        <button onClick={() => handleSendMessage("Product listing: title + description")} disabled={loading} className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg text-sm hover:bg-green-50 disabled:opacity-50">
-                          ✍️ Listing
+                        <button 
+                          onClick={() => handleSendMessage("Help me set up sales page: 1) Explain what a sales page is 2) Key sections I need (headline, benefits, pricing, FAQ, CTA) 3) Free tools: Carrd ($19/yr), Google Sites (free), Notion (free) 4) Paid tools: Gumroad (built-in), SamCart ($79/mo), ConvertKit ($29/mo) 5) Write sample copy for each section 6) Step-by-step setup in chosen tool")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg text-sm hover:bg-green-50 disabled:opacity-50"
+                        >
+                          🛒 Sales Page
                         </button>
-                        <button onClick={() => handleSendMessage("Top 3 marketing channels")} disabled={loading} className="px-3 py-1.5 bg-white border border-pink-300 text-pink-700 rounded-lg text-sm hover:bg-pink-50 disabled:opacity-50">
-                          📢 Marketing
+                        <button 
+                          onClick={() => handleSendMessage("Teach me how to create the actual content: 1) What my product should contain 2) How to structure it 3) Free research tools 4) Content writing tips for beginners 5) How to make it valuable 6) Templates/examples for my niche 7) Quality checklist before launch")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          ✍️ Write Content
+                        </button>
+                        <button 
+                          onClick={() => handleSendMessage("3 more problems in this niche with solutions")} 
+                          disabled={loading} 
+                          className="px-3 py-1.5 bg-white border text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          🔍 More Problems
                         </button>
                       </div>
                     </div>
